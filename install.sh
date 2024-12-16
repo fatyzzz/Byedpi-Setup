@@ -2,10 +2,11 @@
 
 # Глобальные константы
 readonly SCRIPT_NAME=$(basename "$0")
-readonly LOG_FILE="/var/log/${SCRIPT_NAME}.log"
-readonly CONFIG_FILE="/etc/byedpi/config.conf"
-readonly BYEDPI_DIR="/opt/ciadpi"
+readonly LOG_FILE="/tmp/${SCRIPT_NAME}.log"
+readonly CONFIG_FILE="$HOME/.config/systemd/user/config.conf"
+readonly BYEDPI_DIR="$HOME/ciadpi/"
 readonly TEMP_DIR=$(mktemp -d)
+readonly setup_repo="https://github.com/fatyzzz/Byedpi-Setup/archive/refs/heads/main.zip"
 
 # Цвета для логирования
 readonly COLOR_GREEN='\e[32m'
@@ -40,31 +41,105 @@ safe_mkdir() {
     mkdir -p "$dir_path"
     log green "Создана директория: $dir_path"
 }
-
-# Проверка прав суперпользователя
-check_root() {
-    if [[ $EUID -ne 0 ]]; then
-       log red "Этот скрипт должен запускаться с правами root" 
-       exit 1
+safe_mkdir_no_rm() {
+    local dir_path=$1
+    
+    if [[ -d "$dir_path" ]]; then
+        log yellow "Директория $dir_path уже существует."
+    else
+        mkdir -p "$dir_path"
+        log green "Создана директория: $dir_path"
+    fi
+}
+detect_distro() {
+    if [[ -f /etc/os-release ]]; then
+        . /etc/os-release
+        DISTRO=$ID
+    else
+        log red "Не могу определить дистрибутив. Проверьте файл /etc/os-release."
+        exit 1
     fi
 }
 
-# Проверка зависимостей
+# Установка пакетов для Arch Linux
+install_arch() {
+    local packages=("$@")
+    log green "Обнаружен Arch Linux. Устанавливаю пакеты: ${packages[*]}"
+    log yellow "Требуются права суперпользователя. Введите пароль root:"
+    su -c "pacman -S --noconfirm ${packages[*]}"
+}
+
+# Установка пакетов для Debian
+install_debian() {
+    local packages=("$@")
+    log green "Обнаружен Debian. Устанавливаю пакеты: ${packages[*]}"
+    log yellow "Требуются права суперпользователя. Введите пароль root:"
+    su -c "apt update && apt install -y ${packages[*]}" || {
+        log red "Ошибка установки пакетов"
+        exit 1
+    }
+    log green "Установка завершена."
+}
+
+# Установка пакетов для Ubuntu
+install_ubuntu() {
+    local packages=("$@")
+    log green "Обнаружен Ubuntu. Устанавливаю пакеты: ${packages[*]}"
+    su -c "apt update && apt install -y ${packages[*]}" || {
+        log red "Ошибка установки пакетов"
+        exit 1
+    }
+    log green "Установка завершена."
+}
+
+# Универсальная установка для других дистрибутивов
+install_other() {
+    local packages=("$@")
+    log yellow "Ваш дистрибутив ($DISTRO) не поддерживается напрямую."
+    
+    if command -v zypper >/dev/null 2>&1; then
+        su -c "zypper install -y ${packages[*]}"
+    elif command -v dnf >/dev/null 2>&1; then
+        su -c "dnf install -y ${packages[*]}"
+    elif command -v yum >/dev/null 2>&1; then
+        su -c "yum install -y ${packages[*]}"
+    else
+        log red "Не удалось найти менеджер пакетов. Установите вручную: ${packages[*]}"
+        exit 1
+    fi
+}
+
+# Проверка и установка зависимостей
 check_dependencies() {
-    local dependencies=("curl" "unzip" "make" "gcc" "python3" "pip" "systemctl")
-    local missing_deps=()
+    detect_distro
+
+    local dependencies=("gcc" "make" "unzip" "curl")
+    local missing=()
 
     for dep in "${dependencies[@]}"; do
         if ! command -v "$dep" &> /dev/null; then
-            missing_deps+=("$dep")
+            missing+=("$dep")
         fi
     done
 
-    if [[ ${#missing_deps[@]} -gt 0 ]]; then
-        log red "Отсутствуют необходимые зависимости: ${missing_deps[*]}"
-        log yellow "Попытка автоматической установки..."
-        apt-get update
-        apt-get install -y "${missing_deps[@]}"
+    if [ ${#missing[@]} -ne 0 ]; then
+        log yellow "Не найдены необходимые зависимости: ${missing[*]}"
+        case "$DISTRO" in
+            arch)
+                install_arch "${missing[@]}"
+                ;;
+            debian)
+                install_debian "${missing[@]}"
+                ;;
+            ubuntu)
+                install_ubuntu "${missing[@]}"
+                ;;
+            *)
+                install_other "${missing[@]}"
+                ;;
+        esac
+    else
+        log green "Все необходимые пакеты установлены."
     fi
 }
 
@@ -72,7 +147,7 @@ check_dependencies() {
 safe_download() {
     local url=$1
     local output=$2
-    local cache_dir="/var/cache/byedpi"
+    local cache_dir="/tmp/cache/byedpi"
 
     safe_mkdir "$cache_dir"
 
@@ -114,16 +189,14 @@ install_byedpi() {
 
 # Загрузка и обработка списков
 fetch_configuration_lists() {
-    local setup_repo="https://github.com/fatyzzz/Byedpi-Setup/archive/refs/heads/dev.zip"
-    local setup_zip="$TEMP_DIR/Byedpi-Setup-dev.zip"
+    local setup_zip="$TEMP_DIR/Byedpi-Setup-main.zip"
 
     safe_download "$setup_repo" "$setup_zip"
     unzip -q "$setup_zip" -d "$TEMP_DIR"
 
-    cd "$TEMP_DIR/Byedpi-Setup-dev/assets" || exit 1
+    cd "$TEMP_DIR/Byedpi-Setup-main/assets" || exit 1
 
-    pip install requests
-    python3 link_get.py
+    bash link_get.sh
 
     # Отладка содержимого файлов
     log yellow "Проверка файла settings.txt:"
@@ -176,9 +249,8 @@ update_service() {
     # Создаем конфигурационный файл
     safe_mkdir "$(dirname "$CONFIG_FILE")"
     echo "$setting" > "$CONFIG_FILE"
-
     # Создаем службу systemd
-    cat > "/etc/systemd/system/ciadpi.service" <<EOF
+    cat > "$HOME/.config/systemd/user/ciadpi.service" <<EOF
 [Unit]
 Description=ByeDPI Proxy Service
 After=network.target
@@ -194,14 +266,15 @@ WantedBy=multi-user.target
 EOF
 
     # Перезагружаем конфигурацию systemd
-    systemctl daemon-reload
+    systemctl --user daemon-reload
 
     # Перезапускаем службу
-    systemctl restart ciadpi || {
+    systemctl --user restart ciadpi || {
         log red "Ошибка запуска службы"
         return 1
     }
-
+    systemctl --user enable ciadpi 2>/dev/null 
+    log green "Служба добавлена в автозапуск"
     return 0
 }
 
@@ -218,11 +291,11 @@ test_configurations() {
     log yellow "Загружено доменов: ${#links[@]}"
 
     # Останавливаем службу
-    systemctl stop ciadpi 2>/dev/null || true
+    systemctl --user stop ciadpi 2>/dev/null || true
 
     local -a results=()
-    local max_parallel=10  # Увеличиваем количество параллельных проверок
-
+    local max_parallel=${#links[@]}  # Увеличиваем количество параллельных проверок
+    safe_mkdir_no_rm "$HOME/.config/systemd/user/"
     # Перебираем настройки
     local setting_number=1
     for setting in "${settings[@]}"; do
@@ -231,9 +304,8 @@ test_configurations() {
         log yellow "================================================"
         log yellow "Тестирование настройки [$setting_number/${#settings[@]}]"
         log green "Настройка: $setting"
-
         # Создаем службу
-        cat > "/etc/systemd/system/ciadpi.service" <<EOF
+        cat > "$HOME/.config/systemd/user/ciadpi.service" <<EOF
 [Unit]
 Description=ByeDPI Proxy Service
 After=network.target
@@ -248,13 +320,25 @@ RestartSec=5s
 WantedBy=multi-user.target
 EOF
         log green "Запускаем службу..."
-        { systemctl daemon-reload && systemctl restart ciadpi; } || {
+        { systemctl --user daemon-reload && systemctl --user restart ciadpi; } || {
             log red "Ошибка запуска службы для настройки $setting, пропускаем..."
             continue
         }
         
-        log yellow "Ожидание запуска службы (2 сек)..."  # Уменьшаем время ожидания
-        sleep 2
+
+        log yellow "Ожидание запуска службы..."
+        for i in {1..10}; do
+            if systemctl --user is-active --quiet ciadpi; then
+            log green "Служба успешно запущена"
+            break
+            fi
+            sleep 1
+        done
+
+        if ! systemctl --user is-active --quiet ciadpi; then
+            log red "Служба не запустилась для настройки $setting, пропускаем..."
+            continue
+        fi
 
         local success_count=0
         local total_count=0
@@ -262,7 +346,7 @@ EOF
         local temp_dir=$(mktemp -d)
         local -a pids=()
         local -A domain_status=()  # Хэш для хранения статусов проверок
-
+        sleep 3
         log green "Начинаем параллельную проверку доменов..."
         
         # Запускаем проверку каждого домена в фоновом режиме
@@ -277,7 +361,7 @@ EOF
                             -o /dev/null -s -w "%{http_code}" "$https_link" \
                             --connect-timeout 2 --max-time 3) || http_code="000"
 
-                if [[ "$http_code" == "200" || "$http_code" == "404" || "$http_code" == "400" || "$http_code" == "403" || "$http_code" == "302" || "$http_code" == "301" ]]; then
+                if [[ "$http_code" == "200" || "$http_code" == "404" || "$http_code" == "400" || "$http_code" == "405" || "$http_code" == "403" || "$http_code" == "302" || "$http_code" == "301" ]]; then
                     log green "  ✓ OK ($https_link: $http_code)"
                     echo "success" > "$temp_dir/result_$domain_number"
                 else
@@ -314,7 +398,7 @@ EOF
         rm -rf "$temp_dir"
 
         log yellow "Останавливаем службу..."
-        systemctl stop ciadpi 2>/dev/null || true
+        systemctl --user stop ciadpi 2>/dev/null || true
 
         local success_rate=0
         if [[ $total_count -gt 0 ]]; then
@@ -338,13 +422,33 @@ EOF
 
 # Основная функция
 main() {
-    check_root
+    echo -e "\e[32m"
+    cat << "EOF"
+⠀⣀⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⣀⠀⠀
+⢾⣿⣿⣿⣿⣶⣤⡀⠀⠀⠀⠀⠀⠀⠀⠀⠄⠀⣀⣴⣶⣿⣿⣿⣿⡇⠀
+⠈⢿⣿⣿⣿⡛⠛⠈⠳⣄⠂⠀⠀⠀⠀⠀⣠⠞⠉⠛⢻⣿⣿⣿⡟⠀⠀
+⠀⠸⣿⣿⣿⠥⠀⠀⠀⠈⢢⠀⠀⠀⠀⡜⠁⠀⠀⠀⢸⣿⣿⣿⠁⠀⠀
+⠀⠀⣿⣿⣯⠭⠤⠀⠀⠀⠀⠃⣰⡄⠌⠀⠀⠀⠀⠨⢭⣿⣿⣿⠀⠀⠀
+⠀⠀⠹⢿⣿⣈⣀⣀⠀⠀⠠⢴⣿⣿⡦⠀⠀⠀⣀⣈⣱⣿⠿⠃⠀⠀⠀
+⠀⠀⠀⢠⣾⣿⡟⠁⠀⠀⠀⠀⣿⣏⠀⠀⠀⠀⠘⣻⣿⣶⠀⠀⠀⠀⠀
+⠀⠀⠀⢸⣿⣿⢂⠀⠀⠀⠀⠘⢸⡇⠆⠀⠀⠀⢀⠰⣿⣿⠀⠀⠀⠀⠀
+⠀⠀⠀⠈⣿⣷⣿⣆⡀⠀⠀⠁⠈⠀⠠⠀⠀⢀⣶⣿⣿⠏⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠘⣿⣿⣿⣷⣴⡜⠀⠀⠀⠀⣦⣤⣾⣿⣿⡏⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⢀⡿⠛⠿⠿⠿⠛⠁⠀⠀⠀⠀⠘⠿⠿⠿⠿⢧⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⣾⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⣧⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠀⠀⠀⠀⠀
+EOF
+    # Добавление текста
+    echo -e "\e[36m"
+    echo "Byedpi-Setup"
+    echo "github.com/fatyzzz/Byedpi-Setup"
+    echo -e "\e[0m"
+    sleep 2
     check_dependencies
-
-    trap 'log red "Скрипт прерван"; systemctl stop ciadpi 2>/dev/null || true; exit 1' SIGINT SIGTERM ERR
+    
+    trap 'log red "Скрипт прерван"; systemctl --user stop ciadpi 2>/dev/null || true; exit 1' SIGINT SIGTERM ERR
 
     log green "Начало установки ByeDPI"
-
     safe_mkdir "$TEMP_DIR"
     install_byedpi
     fetch_configuration_lists
