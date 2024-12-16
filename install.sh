@@ -346,7 +346,7 @@ EOF
         local temp_dir=$(mktemp -d)
         local -a pids=()
         local -A domain_status=()  # Хэш для хранения статусов проверок
-        sleep 3
+        sleep 0.5
         log green "Начинаем параллельную проверку доменов..."
         
         # Запускаем проверку каждого домена в фоновом режиме
@@ -418,6 +418,20 @@ EOF
 
     # Быстрый вывод результатов
     printf "RESULTS_START\n%s\nRESULTS_END\n" "$(printf '%s\n' "${results[@]}")"
+    
+    # Сохраняем успешные настройки в файл
+    local success_file="$HOME/successful_settings.txt"
+    > "$success_file" # Очищаем файл перед записью
+    for result in "${results[@]}"; do
+        IFS='#' read -r setting success_rate _ _ _ <<< "$result"
+        if ((success_rate >= 90)); then
+            echo "$setting" >> "$success_file"
+        fi
+    done
+    
+    if [[ -f "$success_file" && -s "$success_file" ]]; then
+        log green "Успешные настройки (>90%) сохранены в $success_file"
+    fi
 }
 
 # Основная функция
