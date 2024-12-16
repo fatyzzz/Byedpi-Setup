@@ -189,12 +189,12 @@ install_byedpi() {
 
 # Загрузка и обработка списков
 fetch_configuration_lists() {
-    local setup_zip="$TEMP_DIR/Byedpi-Setup-main.zip"
+    local setup_zip="$TEMP_DIR/Byedpi-Setup-dev.zip"
 
     safe_download "$setup_repo" "$setup_zip"
     unzip -q "$setup_zip" -d "$TEMP_DIR"
 
-    cd "$TEMP_DIR/Byedpi-Setup-main/assets" || exit 1
+    cd "$TEMP_DIR/Byedpi-Setup-dev/assets" || exit 1
 
     bash link_get.sh
 
