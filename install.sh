@@ -6,7 +6,7 @@ readonly LOG_FILE="/tmp/${SCRIPT_NAME}.log"
 readonly CONFIG_FILE="$HOME/.config/systemd/user/config.conf"
 readonly BYEDPI_DIR="$HOME/ciadpi/"
 readonly TEMP_DIR=$(mktemp -d)
-readonly setup_repo="https://github.com/fatyzzz/Byedpi-Setup/archive/refs/heads/main.zip"
+readonly setup_repo="https://github.com/fatyzzz/Byedpi-Setup/archive/refs/heads/dev.zip"
 
 # Цвета для логирования
 readonly COLOR_GREEN='\e[32m'
