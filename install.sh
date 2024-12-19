@@ -375,7 +375,7 @@ EOF
         local temp_dir=$(mktemp -d)
         local -a pids=()
         local -A domain_status=()  # Хэш для хранения статусов проверок
-        sleep 1
+        sleep 0.5
         log green "Начинаем параллельную проверку доменов..."
         
         # Запускаем проверку каждого домена в фоновом режиме
@@ -386,9 +386,9 @@ EOF
 
             (
                 local http_code
-                http_code=$(curl -x socks5h://127.0.0.1:"$port_test" \
+                http_code=$(curl --compressed -x socks5h://127.0.0.1:"$port_test" \
                             -o /dev/null -s -w "%{http_code}" "$https_link" \
-                            --connect-timeout 2 --max-time 3) || http_code="000"
+                            --connect-timeout 1 --max-time 2) || http_code="000"
 
                 if [[ "$http_code" == "200" || "$http_code" == "404" || "$http_code" == "400" || "$http_code" == "405" || "$http_code" == "403" || "$http_code" == "302" || "$http_code" == "301" ]]; then
                     log green "  ✓ OK ($https_link: $http_code)"
