@@ -1,4 +1,5 @@
 www.youtube.com
+youtube.com
 youtubei.googleapis.com
 manifest.googlevideo.com
 i.ytimg.com
@@ -10,6 +11,8 @@ rr1---sn-4axm-n8vs.googlevideo.com
 rr1---sn-gvnuxaxjvh-o8ge.googlevideo.com
 rr1---sn-ug5onuxaxjvh-p3ul.googlevideo.com
 rr1---sn-ug5onuxaxjvh-n8v6.googlevideo.com
+rr8---sn-ug5onuxaxjvh-n8v6.googlevideo.com
+rr1---sn-ug5onuxaxjvh-n8vz.googlevideo.com
 rr4---sn-q4flrnsl.googlevideo.com
 rr10---sn-gvnuxaxjvh-304z.googlevideo.com
 rr1---sn-8ph2xajvh-5xge.googlevideo.com
@@ -21,17 +24,12 @@ rr5---sn-gvnuxaxjvh-n8vk.googlevideo.com
 rr4---sn-jvhnu5g-c35d.googlevideo.com
 rr1---sn-q4fl6n6y.googlevideo.com
 rr2---sn-hgn7ynek.googlevideo.com
+r1---sn-8ph2xajvh-3w5s.googlevideo.com
+rr1---sn-hpaxjvh-v8cl.googlevideo.com
 googleapis.com
 gstatic.com
 play.google.com
-rutor.info
-rutracker.org
-facebook.com
-torproject.org
-t.co
-fb.com
-thepiratebay.org
-rezka.ag
+meduza.io
 discord.com
 finland10100.discord.media
 hongkong11078.discord.media
