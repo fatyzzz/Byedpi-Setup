@@ -362,7 +362,6 @@ EOF
             log green "Служба успешно запущена"
             break
             fi
-            sleep 1
         done
 
         if ! systemctl --user is-active --quiet ciadpitest; then
@@ -376,7 +375,7 @@ EOF
         local temp_dir=$(mktemp -d)
         local -a pids=()
         local -A domain_status=()  # Хэш для хранения статусов проверок
-        sleep 3
+        sleep 1
         log green "Начинаем параллельную проверку доменов..."
         
         # Запускаем проверку каждого домена в фоновом режиме
