@@ -1,6 +1,3 @@
--Kt,h -o3+h -q9+h -f-1 --md5sig -Asn -Ku -a5 -An
--Kt,h -s6+s -d10+s -d14+hn -d19+sh -T3 -f-1 --md5sig -Asn -Ku -a5 -An
 -Kt,h -s8+h -d10+hn -f-1 --md5sig -Asn -Ku -a5 -An
--Kt,h -s5+h -q9+sn -T9 -f-1 --md5sig -Asn -Ku -a5 -An
 -Kt,h -s5 -d10+sh -f-1 --md5sig -Asn -Ku -a5 -An
 -Kt,h -s4 -q6+n -f-1 --md5sig -Asn -Ku -a5 -An
