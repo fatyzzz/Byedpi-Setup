@@ -16,7 +16,7 @@
 Просто выполните следующую команду в терминале:
 
 ```bash
-bash <(wget -qO- https://raw.githubusercontent.com/fatyzzz/Byedpi-Setup/refs/heads/main/install.sh)
+wget -qO- https://raw.githubusercontent.com/fatyzzz/Byedpi-Setup/refs/heads/main/install.sh > install.sh && bash install.sh
 ```
 
 ## ℹ️ Информация
