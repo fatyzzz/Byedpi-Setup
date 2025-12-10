@@ -4,7 +4,7 @@
 get_cluster_codename() {
     local urls=(
         "https://redirector.gvt1.com/report_mapping?di=no"
-        "https://redirector.googlevideo.com/report_mapping?di=no"
+        "https://redirector.xn--ngstr-lra8j.com/report_mapping?di=no"
     )
     
     local letters_list_a=('u' 'z' 'p' 'k' 'f' 'a' '5' '0' 'v' 'q' 'l' 'g' 'b' '6' '1' 'w' 'r' 'm' 'h' 'c' '7' '2' 'x' 's' 'n' 'i' 'd' '8' '3' 'y' 't' 'o' 'j' 'e' '9' '4' '-')
